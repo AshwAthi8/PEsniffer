@@ -6,5 +6,8 @@ Every PE has a DOS header, then comes the PE headers followed by the section tab
 ![Structure 1](https://github.com/AshwAthi8/PEsniffer/blob/master/PE_File_Structure/images/pe1.png)
 This DOS headers is to make sure a backward compatibility to MS-DOS. If the program runs on MS-DOS then it will run and print that this is not for MS-DOS mode program and exit without any errors. Its 64 BYTES long
 ![Structure 2](https://github.com/AshwAthi8/PEsniffer/blob/master/PE_File_Structure/images/pe2.png)
+
+<img src="https://github.com/AshwAthi8/PEsniffer/blob/master/PE_File_Structure/images/pe2.png" width="100" height="100">
+
 DOS header is a predefined structure of windows with the following members:
 ![DOS header members](link)
