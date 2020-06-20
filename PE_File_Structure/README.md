@@ -7,7 +7,7 @@ PE stands for **Portable Executable**.  This is the standard file structure used
 
 Every PE has a DOS header, then comes the PE headers followed by the section table. Then section headers for each section. These sections include .text , .bss, .rdata., .data,  .rsc,.idata, .edata .debug, and .pdata. It's not necessary that all these sections have to be present. 
 
-![Structure 1](PE_File_Structure/images/pe1.png)
+![Structure 1](https://github.com/AshwAthi8/PEsniffer/blob/master/PE_File_Structure/images/pe1.png)
 
 This DOS headers is to make sure a backward compatibility to MS-DOS. If the program runs on MS-DOS then it will run and print that this is not for MS-DOS mode program and exit without any errors. Its 64 BYTES long
 
