@@ -22,18 +22,18 @@ int main(int argc, char* argv[]) {
 	DWORD thunk = 0;
 	DWORD rawOffset = 0;
 
-	// open file
+
 	file = CreateFileA(fileName, GENERIC_ALL, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (file == INVALID_HANDLE_VALUE) printf("Could not read file");
 
-	// allocate heap
+
 	fileSize = GetFileSize(file, NULL);
 	fileData = HeapAlloc(GetProcessHeap(), 0, fileSize);
 
-	// read file bytes to memory
+
 	ReadFile(file, fileData, fileSize, &bytesRead, NULL);
 
-	// IMAGE_DOS_HEADER
+
 	dosHeader = (PIMAGE_DOS_HEADER)fileData;
 
 	printf("               DOS HEADER           \n");
@@ -56,12 +56,10 @@ int main(int argc, char* argv[]) {
 	printf("\t0x%x\t\tOEM information; e_oemid specific\n", dosHeader->e_oeminfo);
 	printf("\t0x%x\t\tFile address of new exe header\n", dosHeader->e_lfanew);
 
-	// IMAGE_NT_HEADERS
 	imageNTHeaders = (PIMAGE_NT_HEADERS)((DWORD)fileData + dosHeader->e_lfanew);
 	printf("\n 			 NT HEADERS 		\n");
 	printf("\t%x\t\tSignature\n", imageNTHeaders->Signature);
 
-	// FILE_HEADER
 	printf("\n 			 FILE HEADER 		\n");
 	printf("\t0x%x\t\tMachine\n", imageNTHeaders->FileHeader.Machine);
 	printf("\t0x%x\t\tNumber of Sections\n", imageNTHeaders->FileHeader.NumberOfSections);
@@ -71,7 +69,7 @@ int main(int argc, char* argv[]) {
 	printf("\t0x%x\t\tSize of Optional Header\n", imageNTHeaders->FileHeader.SizeOfOptionalHeader);
 	printf("\t0x%x\t\tCharacteristics\n", imageNTHeaders->FileHeader.Characteristics);
 
-	// OPTIONAL_HEADER
+
 	printf("\n 			 OPTIONAL HEADER 		\n");
 	printf("\t0x%x\t\tMagic\n", imageNTHeaders->OptionalHeader.Magic);
 	printf("\t0x%x\t\tMajor Linker Version\n", imageNTHeaders->OptionalHeader.MajorLinkerVersion);
@@ -104,21 +102,21 @@ int main(int argc, char* argv[]) {
 	printf("\t0x%x\t\tLoader Flags\n", imageNTHeaders->OptionalHeader.LoaderFlags);
 	printf("\t0x%x\t\tNumber Of Rva And Sizes\n", imageNTHeaders->OptionalHeader.NumberOfRvaAndSizes);
 
-	// DATA_DIRECTORIES
+	
 	printf("\n 			 DATA DIRECTORIES   		\n");
 	printf("\tExport Directory Address: 0x%x; Size: 0x%x\n", imageNTHeaders->OptionalHeader.DataDirectory[0].VirtualAddress, imageNTHeaders->OptionalHeader.DataDirectory[0].Size);
 	printf("\tImport Directory Address: 0x%x; Size: 0x%x\n", imageNTHeaders->OptionalHeader.DataDirectory[1].VirtualAddress, imageNTHeaders->OptionalHeader.DataDirectory[1].Size);
 
-	// SECTION_HEADERS
+
 	printf("\n 			 SECTION HEADERS  			\n");
-	// get offset to first section headeer
+	
 	DWORD sectionLocation = (DWORD)imageNTHeaders + sizeof(DWORD) + (DWORD)(sizeof(IMAGE_FILE_HEADER)) + (DWORD)imageNTHeaders->FileHeader.SizeOfOptionalHeader;
 	DWORD sectionSize = (DWORD)sizeof(IMAGE_SECTION_HEADER);
 
-	// get offset to the import directory RVA
+	
 	DWORD importDirectoryRVA = imageNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
 
-	// print section data
+
 	for (int i = 0; i < imageNTHeaders->FileHeader.NumberOfSections; i++) {
 		sectionHeader = (PIMAGE_SECTION_HEADER)sectionLocation;
 		printf("\t%s\n", sectionHeader->Name);
@@ -132,31 +130,30 @@ int main(int argc, char* argv[]) {
 		printf("\t\t0x%x\t\tNumber Of Line Numbers\n", sectionHeader->NumberOfLinenumbers);
 		printf("\t\t0x%x\tCharacteristics\n", sectionHeader->Characteristics);
 
-		// save section that contains import directory table
 		if (importDirectoryRVA >= sectionHeader->VirtualAddress && importDirectoryRVA < sectionHeader->VirtualAddress + sectionHeader->Misc.VirtualSize) {
 			importSection = sectionHeader;
 		}
 		sectionLocation += sectionSize;
 	}
 
-	// get file offset to import table
+	
 	rawOffset = (DWORD)fileData + importSection->PointerToRawData;
 
-	// get pointer to import descriptor's file offset. Note that the formula for calculating file offset is: imageBaseAddress + pointerToRawDataOfTheSectionContainingRVAofInterest + (RVAofInterest - SectionContainingRVAofInterest.VirtualAddress)
+	
 	importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(rawOffset + (imageNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress - importSection->VirtualAddress));
 
 	printf("\n 		 DLL IMPORTS   \n");
 	for (; importDescriptor->Name != 0; importDescriptor++) {
-		// imported dll 
+	
 		printf("\t%s\n", rawOffset + (importDescriptor->Name - importSection->VirtualAddress));
 		thunk = importDescriptor->OriginalFirstThunk == 0 ? importDescriptor->FirstThunk : importDescriptor->OriginalFirstThunk;
 		thunkData = (PIMAGE_THUNK_DATA)(rawOffset + (thunk - importSection->VirtualAddress));
 
-		// dll exported functions
+		
 		for (; thunkData->u1.AddressOfData != 0; thunkData++) {
-			//a cheap and probably non-reliable way of checking if the function is imported via its ordinal number ¯\_(ツ)_/¯
+			
 			if (thunkData->u1.AddressOfData > 0x80000000) {
-				//show lower bits of the value to get the ordinal ¯\_(ツ)_/¯
+				
 				printf("\t\tOrdinal: %x\n", (WORD)thunkData->u1.AddressOfData);
 			}
 			else {
