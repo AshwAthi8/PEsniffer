@@ -9,6 +9,9 @@ This DOS headers is to make sure a backward compatibility to MS-DOS. If the prog
 <img src="https://github.com/AshwAthi8/Sniffer/blob/master/PESniffer/images/pe2.png" width="450" height="700">
 </div>
 
+[comment]: <> [title](./images/pe2.png)
+
+
 DOS header is a predefined structure of windows with 19 members. 
 ### DOS header members:
 
@@ -34,10 +37,13 @@ e_res2
 e_lfanew
 ```
 
-Out of these, the important ones are e_magic and e_lfanew. 
-Magic part has the letters MZ (Mark Zbikowsky) which is the MS-DOS header and ifanew contains the offset to PE header with respect to the file.
+Out of these, the important ones are 
+- e_magic - the letters MZ (Mark Zbikowsky) which is the MS-DOS header
 
-PE header
+- e_lfanew - contains the offset to PE header with respect to the file.
+
+
+### PE headers
 It is again a structure defined as below:
 
 ```
@@ -48,8 +54,12 @@ It is again a structure defined as below:
 }
 ```
 
-Signature contains 4 bytes  PE followed by two terminating zeros.
-File header is again a structure
+- Signature contains 4 bytes  PE followed by two terminating zeros.
+```
+50 45 00 00
+```
+
+- File header is again a structure: 
 
 ```
 IMAGE_FILE_HEADER_STRUCT{
@@ -62,8 +72,18 @@ SizeOfOptionalHeader
 Characteristics
 }
 ```
-These all are mainly the physical layout of file, filling 20 bytes of the PE file.
-OptionalHeader is the next 224 bytes
+
+These all are mainly the physical layout of file, filling `120 bytes` of the PE file.
+
+- `Machine` basically tells the targetted machine for that executable.
+- `NumberofSections` this is an important parameter. Incase if any section is added/deleted then Corresponding changes must be made here too.
+- `Characteristics` - This contains few important details, such as flags to know whether the file is a DLL or an exe.
+
+
+#### OptionalHeader 
+It is the next `224 bytes`. 
+
+It has lot of details...
 
 ```
 IMAGE_OPTIONAL_HEADER_STRUCT {
@@ -101,16 +121,36 @@ IMAGE_OPTIONAL_HEADER_STRUCT {
 }
 ```
 
-Identifies the state of the image file, whether its is:
-- normal executable - 0x10b
-- ROM image 0x107
-- PE32+  0X20B
-The functionality of Most the members can be interpreted from their names itself such as major and minor linker version. ```SizeOfCode``` is basically ther size of the Code section, similarly there is ```SizeOfInitializedData``` and ```SizeOfUninitializedData(BSS)```. ```AddressOfEntryPoint``` is with respect to the image base when its loaded in the memory. 
-```BaseOfCode``` and ```BaseOfData``` are the addresses relative to the image base of the beginning-of-code section and beginning-of-data section When loaded in memory. 
-```ImageBase``` is the preferred address of the image’s starting byte when loaded in the memory.(Mostly 0x400000)
-There are two alignments taking place which are Section and file alignment. One alignment is for the executable present in the memory and other one is for the file present on the disk. 
+- `Magic` Identifies whether its is:
+  - PE32 - 0x10b
+  - ROM image - 0x107
+  - PE32+ (64 bit)  - 0X20B
 
-The Next Important is the Last member of the struct, that is DataDirectory. 
+- `major and minor linker version`, as the name suggests can be used to itentify the linker version. [such as visual studio version]
+
+- `SizeOfCode` is basically ther size of the entire Code/Text section. 
+
+- `SizeOfInitializedData` size of the whole initialised data - entire data section.
+- `SizeOfUninitializedData(BSS)` size of the whole uninitialised data - entire .bss section.
+
+- `AddressOfEntryPoint` is with respect to the image base when its loaded in the memory. Its basically the RVA of the first instruction to be executed. 
+  - If the flow of the Instruction has to be altered from the start then this shall be changes. 
+  - Incase in packers this will be pointing to the decompression stub then later on jump instruction to the original entry point.
+
+- `BaseOfCode` is the offset to the starting of the code/text section from the imagebase.
+
+- `BaseOfData` is the offset to the starting of the data section from the imagebase. [absent in PE 32+]
+
+- `ImageBase` is the preferred address of the image’s starting byte when loaded in the memory.(Mostly 0x400000)
+
+- `Alignment`
+  - There are two alignments taking place which are `Section` and `file` alignment. 
+  - `Section alignment` is for the executable present in the memory and  `file alignment` is for the file present on the disk. 
+
+#### DataDirectory
+
+The Next Important is the last member of the optional headers, that is DataDirectory. Its the last 128 bytes of the optional headers, having 16 structures, 8 bytes each.
+
 ```
 IMAGE_DATA_DIRECTORY_STRUCT {
   DWORD VirtualAddress
@@ -118,4 +158,4 @@ IMAGE_DATA_DIRECTORY_STRUCT {
 }
 ```
 
-There are various directories with these two values including the ones for Export, Import, Resource, debug, TLS and more. 
+The various directories with these two values includ Export directories, Import directories, Resource directories, debug directories, TLS and more. 
