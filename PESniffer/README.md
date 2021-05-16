@@ -323,3 +323,7 @@ int lets_do() {
     return 1;
 }
 ```
+
+### Important points
+ - RVA = VA - IMAGEBASE
+ - RVA = RawOffset_YouHave - RawOffsetOfSection + VirtualOffsetOfSection + ImageBase
