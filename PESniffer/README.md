@@ -242,3 +242,84 @@ IMAGE_EXPORT_DIRECTORY{
 ***Export Forwarding***- A method to export a function from a DLL which actually belongs to a different DLL. Here the EAT will have a pointer to an ascii string of the DLL and function name ie an address inside the export section.
 
 
+## The Import Section 
+
+It has `IMAGE_IMPORT_DIRECTORY` of 20 bytes for each DLL.
+
+
+
+The function which is responsible for hooking.
+
+*from hooking challenge*
+Here we iterate through the import table and hook the api call.
+
+```
+int lets_do() {
+    #Gain the module handle of the executable
+    LPVOID imageBase = GetModuleHandleA(NULL);
+
+    #The base will be pointing to the DOS headers
+    PIMAGE_DOS_HEADER dosheader = (PIMAGE_DOS_HEADER)imageBase;
+
+    #last member of DOS header that is e_lfanew which tells in the offest to PE headers hence adding it to DOS to get to PE header
+    PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((DWORD_PTR)imageBase + dosheader->e_lfanew);
+
+    #Initializing importDescriptor as null
+    PIMAGE_IMPORT_DESCRIPTOR importDescriptor = NULL;
+    
+    #retriving the importsDirectory of the module from the DataDirectory.
+    IMAGE_DATA_DIRECTORY importsDirectory = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+
+    #importsDirectory contains the virtual address and size; virtual address + imagebase will give importdescriptor
+    #which can be used to get each DLL name and functions in it.
+    importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)imageBase);
+    
+    #Initializing 
+    LPCSTR libraryName = NULL;
+    HMODULE library = NULL;
+    PIMAGE_IMPORT_BY_NAME functionName = NULL;
+
+    #importDescriptor is not mentioned anywhere but last name will be filled with 00 bytes hence == NULL
+    while (importDescriptor->Name != NULL)
+    {   
+        #Loading the DLL 
+        libraryName = (LPCSTR)importDescriptor->Name + (DWORD_PTR)imageBase;
+        library = LoadLibraryA(libraryName);
+
+        if (library)
+        {   
+            #each importdescriptor has two main components 
+            # 1. originalFirstThunk
+            # 2. firstThunk
+
+            PIMAGE_THUNK_DATA originalFirstThunk = NULL, firstThunk = NULL;
+
+            #Retrieving the needed values
+            originalFirstThunk = (PIMAGE_THUNK_DATA)((DWORD_PTR)imageBase + importDescriptor->OriginalFirstThunk);
+            firstThunk = (PIMAGE_THUNK_DATA)((DWORD_PTR)imageBase + importDescriptor->FirstThunk);
+            while (originalFirstThunk->u1.AddressOfData != NULL)
+            {
+                functionName = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)imageBase + originalFirstThunk->u1.AddressOfData);
+                if (std::string(functionName->Name).compare("MessageBoxA") == 0)
+                {
+                    SIZE_T bytesWritten = 0;
+                    DWORD oldProtect = 0;
+                    DWORD oldProtect2 = 0;
+
+                    #the originalFirstThunk is not modified.
+                    VirtualProtect((LPVOID)(&firstThunk->u1.Function), 8, PAGE_READWRITE, &oldProtect);
+                    firstThunk->u1.Function = (DWORD_PTR)function_false1;
+                    VirtualProtect((LPVOID)(&firstThunk->u1.Function), sizeof(LPDWORD), PAGE_READONLY, &oldProtect);
+                    break;
+                }
+                ++originalFirstThunk;
+                ++firstThunk;
+            }
+        }
+
+        importDescriptor++;
+    }
+
+    return 1;
+}
+```
